@@ -56,6 +56,9 @@ dependencies {
     implementation("androidx.compose.material:material") // 为下拉刷新添加
     debugImplementation(libs.compose.tooling)
 
+    // HTTP Server
+    implementation("org.nanohttpd:nanohttpd:2.3.1")
+
     // LSposed API
     compileOnly("de.robv.android.xposed:api:82")
 
