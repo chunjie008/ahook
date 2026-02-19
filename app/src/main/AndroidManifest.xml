@@ -27,8 +27,6 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".HttpServerService" android:exported="false"/>
-
         <provider
             android:name=".LogContentProvider"
             android:authorities="com.wzh.ai.provider"

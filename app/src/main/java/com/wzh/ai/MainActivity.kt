@@ -2,7 +2,6 @@ package com.wzh.ai
 
 import android.Manifest
 import android.content.Context
-import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,8 +31,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Start the HTTP server service
-        startService(Intent(this, HttpServerService::class.java))
+
 
         setContent {
             MaterialTheme {
@@ -53,7 +50,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val ipAddress = remember { mutableStateOf("N/A") }
-                val serverPort = HttpServerService.PORT // Assuming PORT is public or accessible
+
 
                 LaunchedEffect(Unit) {
                     ipAddress.value = getIpAddress(this@MainActivity)
@@ -69,7 +66,7 @@ class MainActivity : ComponentActivity() {
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "HTTP Server: ${ipAddress.value}:${serverPort}",
+                                text = "IP Address: ${ipAddress.value}",
                                 color = Color.White,
                                 fontSize = 16.sp
                             )

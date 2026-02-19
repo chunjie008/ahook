@@ -28,9 +28,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         const val COL_OUTPUT_HEX = "output_hex"
         const val COL_OUTPUT_BASE64 = "output_base64"
         const val COL_STACK_TRACE = "stack_trace"
-        const val COL_VI_STRING = "vi_string"
-        const val COL_VI_HEX = "vi_hex"
-        const val COL_VI_BASE64 = "vi_base64"
+        const val COL_IV_STRING = "iv_string"
+        const val COL_IV_HEX = "iv_hex"
+        const val COL_IV_BASE64 = "iv_base64"
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -52,9 +52,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 $COL_OUTPUT_HEX TEXT,
                 $COL_OUTPUT_BASE64 TEXT,
                 $COL_STACK_TRACE TEXT,
-                $COL_VI_STRING TEXT,
-                $COL_VI_HEX TEXT,
-                $COL_VI_BASE64 TEXT
+                $COL_IV_STRING TEXT,
+                $COL_IV_HEX TEXT,
+                $COL_IV_BASE64 TEXT
             )
         """
         db.execSQL(createTableQuery)
@@ -65,9 +65,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             db.execSQL("ALTER TABLE $TABLE_LOGS ADD COLUMN $COL_STACK_TRACE TEXT;")
         }
         if (oldVersion < 3) {
-            db.execSQL("ALTER TABLE $TABLE_LOGS ADD COLUMN $COL_VI_STRING TEXT;")
-            db.execSQL("ALTER TABLE $TABLE_LOGS ADD COLUMN $COL_VI_HEX TEXT;")
-            db.execSQL("ALTER TABLE $TABLE_LOGS ADD COLUMN $COL_VI_BASE64 TEXT;")
+            db.execSQL("ALTER TABLE $TABLE_LOGS ADD COLUMN $COL_IV_STRING TEXT;")
+            db.execSQL("ALTER TABLE $TABLE_LOGS ADD COLUMN $COL_IV_HEX TEXT;")
+            db.execSQL("ALTER TABLE $TABLE_LOGS ADD COLUMN $COL_IV_BASE64 TEXT;")
         }
     }
 }

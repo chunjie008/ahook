@@ -3,6 +3,7 @@ package com.wzh.ai
 import android.content.ContentUris
 import android.content.Context
 import android.database.Cursor
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
@@ -21,16 +23,20 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import kotlinx.coroutines.launch
 
 // --- 导航路由定义 ---
@@ -96,8 +102,25 @@ fun AppListScreen(navController: NavController) {
         refresh()
     }
 
-    Scaffold(
-        topBar = { TopAppBar(title = { Text("已被 Hook 的应用") }) }
+
+    
+    var showContentProviderHelp by remember { mutableStateOf(false) }
+
+Scaffold(
+        topBar = { 
+            TopAppBar(
+                title = { Text("已被 Hook 的应用 列表") }
+            ) 
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showContentProviderHelp = true },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White
+            ) {
+                Text("帮助", fontSize = 12.sp)
+            }
+        }
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize().pullRefresh(pullRefreshState)) {
             if (apps.isEmpty() && !refreshing) {
@@ -139,6 +162,14 @@ fun AppListScreen(navController: NavController) {
                 onDismiss = { appToDelete = null }
             )
         }
+    }
+    
+
+    
+    if (showContentProviderHelp) {
+        ContentProviderHelpDialog(
+            onDismiss = { showContentProviderHelp = false }
+        )
     }
 }
 
@@ -347,9 +378,9 @@ fun LogDetailScreen(navController: NavController, logId: Long) {
                     DetailRow("密钥 (String):", logItem!!.keyString)
                     DetailRow("密钥 (Hex):", logItem!!.keyHex)
                     DetailRow("密钥 (Base64):", logItem!!.keyBase64)
-                    DetailRow("VI (String):", logItem!!.viString)
-                    DetailRow("VI (Hex):", logItem!!.viHex)
-                    DetailRow("VI (Base64):", logItem!!.viBase64)
+                    DetailRow("IV (String):", logItem!!.ivString)
+                    DetailRow("IV (Hex):", logItem!!.ivHex)
+                    DetailRow("IV (Base64):", logItem!!.ivBase64)
                     DetailRow("输入 (String):", logItem!!.inputString)
                     DetailRow("输入 (Hex):", logItem!!.inputHex)
                     DetailRow("输入 (Base64):", logItem!!.inputBase64)
@@ -366,8 +397,34 @@ fun LogDetailScreen(navController: NavController, logId: Long) {
 @Composable
 fun DetailRow(label: String, value: String?, isCode: Boolean = false) {
     if (value.isNullOrBlank()) return
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+
     Column(modifier = Modifier.padding(vertical = 8.dp).fillMaxWidth()) {
-        Text(text = label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+            IconButton(
+                onClick = {
+                    clipboardManager.setText(AnnotatedString(value))
+                    Toast.makeText(context, "已复制到剪贴板", Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ContentCopy,
+                    contentDescription = "复制",
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = value,
@@ -411,9 +468,9 @@ private fun getLogsFromProvider(context: Context, packageName: String, searchQue
             DatabaseHelper.COL_KEY_STRING,
             DatabaseHelper.COL_KEY_HEX,
             DatabaseHelper.COL_KEY_BASE64,
-            DatabaseHelper.COL_VI_STRING,
-            DatabaseHelper.COL_VI_HEX,
-            DatabaseHelper.COL_VI_BASE64,
+            DatabaseHelper.COL_IV_STRING,
+            DatabaseHelper.COL_IV_HEX,
+            DatabaseHelper.COL_IV_BASE64,
             DatabaseHelper.COL_INPUT_STRING,
             DatabaseHelper.COL_INPUT_HEX,
             DatabaseHelper.COL_INPUT_BASE64,
@@ -467,9 +524,9 @@ private fun Cursor.toLogItem(): LogItem {
         keyString = getStringOrNull(DatabaseHelper.COL_KEY_STRING),
         keyHex = getStringOrNull(DatabaseHelper.COL_KEY_HEX),
         keyBase64 = getStringOrNull(DatabaseHelper.COL_KEY_BASE64),
-        viString = getStringOrNull(DatabaseHelper.COL_VI_STRING),
-        viHex = getStringOrNull(DatabaseHelper.COL_VI_HEX),
-        viBase64 = getStringOrNull(DatabaseHelper.COL_VI_BASE64),
+        ivString = getStringOrNull(DatabaseHelper.COL_IV_STRING),
+        ivHex = getStringOrNull(DatabaseHelper.COL_IV_HEX),
+        ivBase64 = getStringOrNull(DatabaseHelper.COL_IV_BASE64),
         inputString = getStringOrNull(DatabaseHelper.COL_INPUT_STRING),
         inputHex = getStringOrNull(DatabaseHelper.COL_INPUT_HEX),
         inputBase64 = getStringOrNull(DatabaseHelper.COL_INPUT_BASE64),
@@ -482,3 +539,66 @@ private fun Cursor.toLogItem(): LogItem {
 
 // This function is no longer needed as search is done in the provider
 // private fun LogItem.contains(query: String): Boolean { ... }
+
+
+
+@Composable
+fun ContentProviderHelpDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+
+    val content = """查询帮助信息：
+
+1. 如何找不到sqlite3 请安装模块：
+https://github.com/rojenzaman/sqlite3-magisk-module
+
+2. 查询所有的表名称
+adb shell "echo \"SELECT name FROM sqlite_master WHERE type='table';\" | su -c 'sqlite3 -json /data/data/com.wzh.ai/databases/hook_logs.db'"
+
+3. 查询表结构
+adb shell "echo \"PRAGMA table_info('logs');\" | su -c 'sqlite3 -json /data/data/com.wzh.ai/databases/hook_logs.db'"
+
+4. 某时间段数据示例
+adb shell "echo \"SELECT timestamp, log_name, package_name, key_string, key_hex, key_base64, iv_string, iv_hex, iv_base64, input_string, input_hex, input_base64, output_string, output_hex, output_base64 FROM logs WHERE timestamp BETWEEN '2026-02-19 18:08:46.720' AND '2026-02-19 18:08:52.563';\" | su -c 'sqlite3 -json /data/data/com.wzh.ai/databases/hook_logs.db'"
+
+5. 搜索所有包含指定字符串的日志
+adb shell "echo \"SELECT timestamp, log_name, package_name, key_string, key_hex, key_base64, iv_string, iv_hex, iv_base64, input_string, input_hex, input_base64, output_string, output_hex, output_base64 FROM logs WHERE (key_string LIKE '%你要搜索的词%' OR key_hex LIKE '%你要搜索的词%' OR key_base64 LIKE '%你要搜索的词%' OR iv_string LIKE '%你要搜索的词%' OR iv_hex LIKE '%你要搜索的词%' OR iv_base64 LIKE '%你要搜索的词%' OR input_string LIKE '%你要搜索的词%' OR input_hex LIKE '%你要搜索的词%' OR input_base64 LIKE '%你要搜索的词%' OR output_string LIKE '%你要搜索的词%' OR output_hex LIKE '%你要搜索的词%' OR output_base64 LIKE '%你要搜索的词%');\" | su -c 'sqlite3 -json /data/data/com.wzh.ai/databases/hook_logs.db'"
+"""
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("查询帮助") },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                SelectionContainer {
+                    Text(
+                        text = content,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Row {
+                OutlinedButton(
+                    onClick = { 
+                        clipboardManager.setText(AnnotatedString(content))
+                        Toast.makeText(context, "已复制到剪贴板", Toast.LENGTH_SHORT).show()
+                    }
+                ) {
+                    Text("复制全部")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                TextButton(
+                    onClick = onDismiss
+                ) {
+                    Text("关闭")
+                }
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    )
+}

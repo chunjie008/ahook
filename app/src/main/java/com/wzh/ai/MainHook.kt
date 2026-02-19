@@ -235,9 +235,9 @@ class MainHook : IXposedHookLoadPackage {
                     putKeyData(this, info.key.encoded)
 
                     ivBytes?.let {
-                        put(DatabaseHelper.COL_VI_STRING, String(it, Charsets.UTF_8))
-                        put(DatabaseHelper.COL_VI_HEX, it.toHexString())
-                        put(DatabaseHelper.COL_VI_BASE64, it.toBase64String())
+                        put(DatabaseHelper.COL_IV_STRING, String(it, Charsets.UTF_8))
+                        put(DatabaseHelper.COL_IV_HEX, it.toHexString())
+                        put(DatabaseHelper.COL_IV_BASE64, it.toBase64String())
                     }
 
                     putInputData(this, inputBytes)
@@ -331,6 +331,9 @@ class MainHook : IXposedHookLoadPackage {
 
     // 填充输出数据列
     private fun putOutputData(cv: ContentValues, bytes: ByteArray) {
+        if (bytes.isNotEmpty()) {
+            cv.put(DatabaseHelper.COL_OUTPUT_STRING, String(bytes, Charsets.UTF_8))
+        }
         cv.put(DatabaseHelper.COL_OUTPUT_HEX, bytes.toHexString())
         cv.put(DatabaseHelper.COL_OUTPUT_BASE64, bytes.toBase64String())
     }
