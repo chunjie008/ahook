@@ -15,9 +15,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,35 +26,50 @@ import java.net.NetworkInterface
 import java.util.*
 
 class MainActivity : ComponentActivity() {
+    private lateinit var preferencesUtil: PreferencesUtil
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-
+        preferencesUtil = PreferencesUtil(this)
 
         setContent {
             MaterialTheme {
-                // Request storage permissions
-                val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.ACCESS_FINE_LOCATION)
+                val hasAgreedToDisclaimer = remember { mutableStateOf(!showDisclaimerDialogIfNeeded()) }
+                
+                // 如果用户未同意免责声明，则不显示主要内容
+                if (!hasAgreedToDisclaimer.value) {
+                    DisclaimerDialog(
+                        onAgree = {
+                            preferencesUtil.setAgreedToDisclaimer(true)
+                            hasAgreedToDisclaimer.value = true
+                        },
+                        onDisagree = {
+                            finish() // 用户不同意，退出应用
+                        }
+                    )
                 } else {
-                    arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.ACCESS_FINE_LOCATION)
-                }
-                val launcher = rememberLauncherForActivityResult(
-                    ActivityResultContracts.RequestMultiplePermissions()
-                ) { /* Handle permission results if needed */ }
+                    // Request storage permissions
+                    val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.ACCESS_FINE_LOCATION)
+                    } else {
+                        arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.ACCESS_FINE_LOCATION)
+                    }
+                    val launcher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestMultiplePermissions()
+                    ) { /* Handle permission results if needed */ }
 
-                LaunchedEffect(Unit) {
-                    launcher.launch(permissions)
-                }
+                    LaunchedEffect(Unit) {
+                        launcher.launch(permissions)
+                    }
 
-                val ipAddress = remember { mutableStateOf("N/A") }
+                    val ipAddress = remember { mutableStateOf("N/A") }
 
 
-                LaunchedEffect(Unit) {
-                    ipAddress.value = getIpAddress(this@MainActivity)
-                }
+                    LaunchedEffect(Unit) {
+                        ipAddress.value = getIpAddress(this@MainActivity)
+                    }
 
-                Scaffold(
+                    Scaffold(
                     bottomBar = {
                         Column(
                             modifier = Modifier
@@ -73,12 +86,17 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 ) { paddingValues ->
-                    Box(modifier = Modifier.padding(paddingValues)) {
-                        MainApp()
+                        Box(modifier = Modifier.padding(paddingValues)) {
+                            MainApp()
+                        }
                     }
                 }
             }
         }
+    }
+
+    private fun showDisclaimerDialogIfNeeded(): Boolean {
+        return !preferencesUtil.hasAgreedToDisclaimer()
     }
 
     private fun getIpAddress(context: Context): String {

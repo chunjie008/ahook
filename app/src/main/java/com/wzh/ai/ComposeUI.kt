@@ -105,11 +105,17 @@ fun AppListScreen(navController: NavController) {
 
     
     var showContentProviderHelp by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
 
 Scaffold(
         topBar = { 
             TopAppBar(
-                title = { Text("已被 Hook 的应用 列表") }
+                title = { Text("已被 Hook 的应用 列表") },
+                actions = {
+                    IconButton(onClick = { showAboutDialog = true }) {
+                        Text("关于")
+                    }
+                }
             ) 
         },
         floatingActionButton = {
@@ -169,6 +175,12 @@ Scaffold(
     if (showContentProviderHelp) {
         ContentProviderHelpDialog(
             onDismiss = { showContentProviderHelp = false }
+        )
+    }
+    
+    if (showAboutDialog) {
+        AboutDialog(
+            onDismiss = { showAboutDialog = false }
         )
     }
 }
@@ -552,6 +564,9 @@ fun ContentProviderHelpDialog(onDismiss: () -> Unit) {
 1. 如何找不到sqlite3 请安装模块：
 https://github.com/rojenzaman/sqlite3-magisk-module
 
+2. mcp使用参见项目:
+https://github.com/wolfcoming/adb_mcp_server
+
 2. 查询所有的表名称
 adb shell "echo \"SELECT name FROM sqlite_master WHERE type='table';\" | su -c 'sqlite3 -json /data/data/com.wzh.ai/databases/hook_logs.db'"
 
@@ -600,5 +615,95 @@ adb shell "echo \"SELECT timestamp, log_name, package_name, key_string, key_hex,
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp)
+    )
+}
+
+// --- 免责声明对话框 ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DisclaimerDialog(
+    onAgree: () -> Unit,
+    onDisagree: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = { /* 不允许通过点击外部区域关闭对话框 */ },
+        title = { Text(text = "法律声明与使用条款") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .height(300.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = "重要提示：使用本工具前请仔细阅读以下条款：",
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    color = Color.Red
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = "1. 本工具仅供合法的安全研究、渗透测试、合规审计及软件开发调试使用。\n\n" +
+                           "2. 使用本工具时，您必须确保已获得目标应用所有者的明确书面授权。\n\n" +
+                           "3. 请严格遵守所在国家/地区的相关法律法规，包括但不限于《网络安全法》、《个人信息保护法》等。\n\n" +
+                           "4. 严禁将本工具用于任何未经授权的渗透、破解、窃取数据或其他违法行为。\n\n" +
+                           "5. 本工具可能捕获敏感信息（包括但不限于加密密钥、用户数据等），请严格遵守数据最小化原则，妥善保管捕获的数据，不得泄露给无关第三方。\n\n" +
+                           "6. 因不当使用本工具导致的任何法律纠纷，由使用者自行承担全部责任。\n\n" +
+                           "7. 开发者保留追究不当使用者法律责任的权利。\n\n" +
+                           "8. 使用本工具即表示您同意上述条款，并承诺合法使用。" 
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onAgree
+            ) {
+                Text("我已阅读并同意以上条款")
+            }
+        },
+        dismissButton = {
+            Button(
+                onClick = onDisagree
+            ) {
+                Text("不同意，退出应用")
+            }
+        }
+    )
+}
+
+// --- 关于对话框 ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AboutDialog(
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = "关于 AHOOK") },
+        text = {
+            Column {
+                Text(
+                    text = "AHOOK - 加密操作监控Xposed模块",
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = "版本: 1.0")
+                Text(text = "作者: water")
+                Text(text = "联系QQ: 854978821")
+                Text(text = "交流QQ群: 1037044062")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "本工具仅供合法的安全研究、渗透测试、合规审计及软件开发调试使用。",
+                    color = Color.Gray,
+                    fontSize = 12.sp
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss
+            ) {
+                Text("确定")
+            }
+        }
     )
 }
