@@ -3,7 +3,7 @@
 ## 简介
 AHOOK 是一个基于 Xposed 框架开发的高级加密操作监控模块，专门用于捕获 Android 应用程序内部的加密活动。该模块能够实时监控并记录常见的加密操作，包括哈希（MessageDigest）、消息认证码（Mac/HMAC）和加解密（Cipher），完整保存输入数据、输出结果、密钥、IV（初始化向量）以及调用堆栈等关键信息，为开发者和安全研究人员提供全面的加密行为分析能力。
 
-**英文版本**：[README_EN.md](https://github.com/chunjie008/ahook/blob/main/README_EN.md)
+**ENGLISH VERSION**：[README_EN.md](https://github.com/chunjie008/ahook/blob/main/README_EN.md)
 
 ## 功能特性
 *   **全面的加密算法覆盖**：支持监控 MD5、SHA-1、SHA-256 等哈希算法，HMAC 算法，以及 AES、DES、RSA 等加解密操作
