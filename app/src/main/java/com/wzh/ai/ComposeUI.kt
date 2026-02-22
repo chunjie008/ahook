@@ -44,6 +44,7 @@ object Routes {
     const val APP_LIST = "appList"
     const val APP_LOG_LIST = "appLogList/{packageName}"
     const val LOG_DETAIL = "logDetail/{logId}"
+    const val MQTT_CONFIG = "mqttConfig"
 
     fun appLogList(packageName: String) = "appLogList/$packageName"
     fun logDetail(logId: Long) = "logDetail/$logId"
@@ -74,6 +75,9 @@ fun MainApp() {
             if (logId != null) {
                 LogDetailScreen(navController, logId)
             }
+        }
+        composable(Routes.MQTT_CONFIG) {
+            MqttConfigScreen(navController)
         }
     }
 }
@@ -112,6 +116,9 @@ Scaffold(
             TopAppBar(
                 title = { Text("已被 Hook 的应用 列表") },
                 actions = {
+                    IconButton(onClick = { navController.navigate(Routes.MQTT_CONFIG) }) {
+                        Text("设置")
+                    }
                     IconButton(onClick = { showAboutDialog = true }) {
                         Text("关于")
                     }
@@ -706,4 +713,256 @@ fun AboutDialog(
             }
         }
     )
+}
+
+// --- MQTT 配置页面 ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MqttConfigScreen(navController: NavController) {
+    val context = LocalContext.current
+    val prefs = remember { PreferencesUtil(context) }
+
+    var brokerUrl by remember { mutableStateOf(prefs.getMqttBrokerUrl()) }
+    var username by remember { mutableStateOf(prefs.getMqttUsername()) }
+    var password by remember { mutableStateOf(prefs.getMqttPassword()) }
+    var topicPrefix by remember { mutableStateOf(prefs.getMqttLogTopicPrefix()) }
+    var mqttEnabled by remember { mutableStateOf(prefs.isMqttEnabled()) }
+
+    var showSaveSuccess by remember { mutableStateOf(false) }
+    var showSaveError by remember { mutableStateOf(false) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("MQTT 配置") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, "返回")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            // 启用开关
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "启用 MQTT 推送",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Switch(
+                    checked = mqttEnabled,
+                    onCheckedChange = { enabled ->
+                        mqttEnabled = enabled
+                        // 立即保存启用状态并尝试连接/断开
+                        prefs.setMqttEnabled(enabled)
+                        if (enabled) {
+                            // 启用时：保存当前配置并启动前台服务
+                            prefs.setMqttBrokerUrl(brokerUrl)
+                            prefs.setMqttUsername(username)
+                            prefs.setMqttPassword(password)
+                            prefs.setMqttLogTopicPrefix(topicPrefix)
+                            MqttForegroundService.start(context)
+                            Toast.makeText(context, "MQTT 服务已启动", Toast.LENGTH_SHORT).show()
+                        } else {
+                            // 禁用时：停止前台服务
+                            MqttForegroundService.stop(context)
+                            Toast.makeText(context, "MQTT 服务已停止", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                )
+            }
+            
+            // 后台保活说明
+            Spacer(modifier = Modifier.height(8.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        text = "后台保活说明",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "• 启用后会在通知栏显示常驻通知以保持后台活跃\n" +
+                               "• 请在系统设置中关闭本应用的电池优化\n" +
+                               "• 部分系统需要允许自启动和后台运行权限",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Broker URL
+            OutlinedTextField(
+                value = brokerUrl,
+                onValueChange = { brokerUrl = it },
+                label = { Text("Broker 地址") },
+                placeholder = { Text("tcp://your-mqtt-server:1883") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 用户名
+            OutlinedTextField(
+                value = username,
+                onValueChange = { username = it },
+                label = { Text("用户名 (可选)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 密码
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("密码 (可选)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 主题前缀
+            OutlinedTextField(
+                value = topicPrefix,
+                onValueChange = { topicPrefix = it },
+                label = { Text("日志主题前缀") },
+                placeholder = { Text("ahook/logs/") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "日志将发送到: ${topicPrefix}all（消息中已包含 packageName）",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // 保存按钮
+            Button(
+                onClick = {
+                    try {
+                        prefs.setMqttEnabled(mqttEnabled)
+                        prefs.setMqttBrokerUrl(brokerUrl)
+                        prefs.setMqttUsername(username)
+                        prefs.setMqttPassword(password)
+                        prefs.setMqttLogTopicPrefix(topicPrefix)
+
+                        // 如果启用 MQTT，重启前台服务以应用新配置
+                        if (mqttEnabled) {
+                            MqttForegroundService.stop(context)
+                            MqttForegroundService.start(context)
+                        } else {
+                            MqttForegroundService.stop(context)
+                        }
+
+                        showSaveSuccess = true
+                    } catch (e: Exception) {
+                        showSaveError = true
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("保存配置")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 状态显示（实时刷新）
+            var connectionStatus by remember { mutableStateOf(MQTTManager.getInstance().isConnected()) }
+            var serviceRunning by remember { mutableStateOf(MqttForegroundService.isServiceRunning()) }
+            
+            // 定时刷新状态
+            LaunchedEffect(Unit) {
+                while (true) {
+                    connectionStatus = MQTTManager.getInstance().isConnected()
+                    serviceRunning = MqttForegroundService.isServiceRunning()
+                    kotlinx.coroutines.delay(1000) // 每秒刷新一次
+                }
+            }
+            
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "运行状态",
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (serviceRunning) "● 服务运行中" else "○ 服务已停止",
+                            color = if (serviceRunning) Color.Green else Color.Gray,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (connectionStatus) "● MQTT 已连接" else "○ MQTT 未连接",
+                            color = if (connectionStatus) Color.Green else Color.Red,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+        }
+
+        // 保存成功提示
+        if (showSaveSuccess) {
+            LaunchedEffect(showSaveSuccess) {
+                kotlinx.coroutines.delay(2000)
+                showSaveSuccess = false
+            }
+        }
+
+        // 保存失败提示
+        if (showSaveError) {
+            LaunchedEffect(showSaveError) {
+                kotlinx.coroutines.delay(2000)
+                showSaveError = false
+            }
+        }
+    }
+
+    // 使用 Toast 显示提示
+    if (showSaveSuccess) {
+        Toast.makeText(context, "配置已保存", Toast.LENGTH_SHORT).show()
+    }
+    if (showSaveError) {
+        Toast.makeText(context, "保存失败: ${showSaveError}", Toast.LENGTH_SHORT).show()
+    }
 }

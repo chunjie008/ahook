@@ -33,6 +33,148 @@ AHOOK 是一个基于 Xposed 框架开发的高级加密操作监控模块，专
     *   选择需要监控的目标应用（支持批量选择）
 4.  **立即生效**：无需重启设备，安装完成后即可开始监控
 
+## MQTT 实时推送
+AHOOK 支持通过 MQTT 协议实时推送加密日志到远程服务器，方便进行实时监控和数据聚合分析。
+
+### 功能特点
+*   **实时推送**：加密操作发生后立即推送到 MQTT Broker
+*   **统一主题**：所有日志发送至同一主题，消息中已包含 packageName 字段便于过滤
+*   **自动重连**：支持网络异常时的自动重连
+*   **后台保活**：采用前台服务保持 MQTT 连接在后台持续运行
+*   **灵活配置**：支持 MQTT 服务器地址、认证信息、主题前缀等配置
+
+### 配置步骤
+1.  打开 AHOOK 应用，进入"设置"页面
+2.  启用"MQTT 推送"开关
+3.  填写 MQTT Broker 地址（如 `tcp://192.168.1.100:1883`）
+4.  如需认证，填写用户名和密码
+5.  设置日志主题前缀（默认 `ahook/logs/`）
+6.  点击"保存配置"，系统将自动启动服务并连接
+
+### 后台保活配置
+为确保 MQTT 连接在后台持续运行，请进行以下设置：
+
+**1. 关闭电池优化**
+*   进入系统设置 → 应用 → AHOOK → 电池 → 选择"不优化"或"无限制"
+
+**2. 允许后台运行（部分手机需要）**
+*   MIUI：设置 → 应用设置 → 应用管理 → AHOOK → 省电策略 → 无限制
+*   EMUI：设置 → 应用 → 应用启动管理 → AHOOK → 关闭自动管理
+*   ColorOS：设置 → 电池 → 耗电保护 → AHOOK → 允许后台运行
+
+**3. 允许通知**
+*   启用 MQTT 后会在通知栏显示常驻通知，请勿禁用此通知，否则服务可能被系统杀死
+
+### 主题格式
+*   日志主题：`<topic_prefix>all`
+    *   例如：`ahook/logs/all`
+    *   所有日志统一发送到此主题，消息中已包含 `packageName` 字段
+*   控制主题：`ahook/control/#`（预留）
+
+### 消息格式
+每条日志以 JSON 格式推送：
+```json
+{
+  "timestamp": "2024-01-01 12:00:00.000",
+  "logName": "AES/CBC/PKCS5Padding.encrypt",
+  "packageName": "com.target.app",
+  "appName": "目标应用",
+  "keyType": "javax.crypto.spec.SecretKeySpec",
+  "keyString": "your-secret-key",
+  "keyHex": "796f7572-736563726574-6b6579",
+  "keyBase64": "eW91ci1zZWNyZXQta2V5",
+  "inputString": "hello",
+  "inputHex": "68656c6c6f",
+  "inputBase64": "aGVsbG8=",
+  "outputString": "encrypted...",
+  "outputHex": "656e637279707465642e2e2e",
+  "ivString": "1234567890abcdef",
+  "ivHex": "31323334353637383930616263646566",
+  "stackTrace": "java.lang.Exception...\n\tat ..."
+}
+```
+
+### 订阅示例
+```bash
+# 订阅所有日志
+mosquitto_sub -h your-mqtt-server -t "ahook/logs/all" -v
+
+# 使用 emqx 的 WebSocket 订阅
+# 访问 http://your-mqtt-server:18083 查看和管理消息
+```
+
+### 消息过滤
+由于所有日志统一发送到一个主题，订阅者可通过消息中的 `packageName` 字段进行过滤：
+
+**Python 示例：**
+```python
+import json
+import paho.mqtt.client as mqtt
+
+def on_message(client, userdata, msg):
+    log = json.loads(msg.payload)
+    # 只处理目标应用的日志
+    if log.get('packageName') == 'com.target.app':
+        print(f"收到 {log['logName']}: {log.get('keyString', '')[:20]}...")
+
+client = mqtt.Client()
+client.on_message = on_message
+client.connect("your-mqtt-server", 1883)
+client.subscribe("ahook/logs/all")
+client.loop_forever()
+```
+
+### 服务端数据入库
+项目提供了 Python 脚本 `mqtt_to_mariadb.py`，可自动接收 MQTT 消息并存入 MariaDB 数据库。
+
+**安装依赖：**
+```bash
+pip install -r requirements.txt
+```
+
+**配置数据库：**
+编辑脚本顶部的配置：
+```python
+MARIADB_CONFIG = {
+    'host': 'localhost',
+    'port': 3306,
+    'user': 'root',
+    'password': 'your_password',
+    'database': 'traffic_capture',
+    'charset': 'utf8mb4',
+    'autocommit': True
+}
+
+MQTT_CONFIG = {
+    'broker': '192.168.50.18',
+    'port': 1883,
+    'topic': 'ahook/logs/#',
+    ...
+}
+```
+
+**运行脚本：**
+```bash
+python mqtt_to_mariadb.py
+```
+
+**功能特点：**
+*   自动创建 `ahook_logs` 数据表
+*   实时接收消息并存入数据库
+*   支持断线自动重连
+*   日志输出到控制台和 `mqtt_receiver.log` 文件
+*   `Ctrl+C` 优雅退出
+
+### MQTT Broker 推荐
+*   **Mosquitto**：轻量级，开源免费，适合个人使用
+*   **EMQX**：企业级，功能丰富，支持高并发
+*   **HiveMQ**：商业级，稳定性高
+
+### 注意事项
+*   确保设备与 MQTT 服务器网络互通
+*   生产环境建议使用 TLS 加密（mqtts://）
+*   传输的数据可能包含敏感信息，请妥善保管
+
 ## 数据访问方式
 日志信息存储在本地 SQLite 数据库中，可通过以下方式访问：
 

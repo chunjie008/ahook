@@ -62,6 +62,9 @@ dependencies {
     // LSposed API
     compileOnly("de.robv.android.xposed:api:82")
 
+    // MQTT Client - 使用纯 Java 客户端，避免 Android Service 兼容性问题
+    implementation("org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -62,6 +62,13 @@ class MainActivity : ComponentActivity() {
                         launcher.launch(permissions)
                     }
 
+                    // 初始化 MQTT 服务
+                    LaunchedEffect(Unit) {
+                        if (preferencesUtil.isMqttEnabled()) {
+                            MQTTManager.getInstance().initialize(this@MainActivity)
+                        }
+                    }
+
                     val ipAddress = remember { mutableStateOf("N/A") }
 
 
